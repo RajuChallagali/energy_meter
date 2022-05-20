@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Energy Meter'),
     );
   }
 }
@@ -34,57 +34,19 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late DatabaseReference _dbref;
-  String databasejson = '';
+
   var current;
-  var voltage;
-  var power;
-  var pf;
-
-  /*_createDB() {
-    _dbref.child("profile").set(" my profile");
-    _dbref
-        .child("carprofile")
-        .set({'car1': "family car", 'car2': "company car"});
-  }*/
-
-  /*_readdb_onechild() {
-    _dbref
-        .child("customer1")
-        .child("age")
-        .once()
-        .then((DatabaseEvent databaseEvent) {
-      print(" read once - " + databaseEvent.snapshot.value.toString());
-      setState(() {
-        databasejson = databaseEvent.snapshot.value.toString();
-      });
-    });
-  }*/
-
-  /*_realdb_once() {
-    _dbref.once().then((DatabaseEvent databaseEvent) {
-      print(" read once - " + databaseEvent.snapshot.value.toString());
-      setState(() {
-        databasejson = databaseEvent.snapshot.value.toString();
-      });
-    });
-  }*/
-
-  /*_updatevalue() {
-    _dbref.child("carprofile").update({"car2": "big company car"});
-  }
-
-  _delete() {
-    _dbref.child("profile").remove();
-  }*/
+  String voltage = '';
+  String power = '';
+  String pf = '';
 
   @override
   void initState() {
     super.initState();
     _dbref = FirebaseDatabase.instance.ref().child('readings');
-    /*_readdb_onechild();*/
+
     ageChange();
     dataChange();
-    /*_createDB();*/
   }
 
   @override
@@ -97,9 +59,9 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            buildText('Voltage: $voltage'),
-            buildText('Current: $current'),
-            buildText('Power: $power'),
+            buildText('Voltage: $voltage V'),
+            buildText('Current: $current mA'),
+            buildText('Power: $power W'),
             buildText('Power Factor: $pf'),
             StreamBuilder(
               stream: _dbref.onValue,
@@ -117,13 +79,13 @@ class _MyHomePageState extends State<MyHomePage> {
                       itemBuilder: (context, index) {
                         return ListTile(
                           title: Text(
-                              "Voltage: ${item[index]['voltage'].toString()} \nCurrent: ${item[index]['current'].toString()} \nPF: ${item[index]['Pf'].toString()} \nPower: ${item[index]['power'].toString()} \nTime: ${item[index]['Time'].toString()}"),
+                              "Voltage: ${item[index]['voltage'].toString()} V \nCurrent: ${item[index]['current'].toString()} mA \nPF: ${item[index]['Pf'].toString()} \nPower: ${item[index]['power'].toString()} W \nTime: ${item[index]['Time'].toString()}"),
                         );
                       },
                     ),
                   );
                 } else {
-                  return Center(child: Text("No data"));
+                  return Center(child: Text("Loading data...."));
                 }
               },
             ),
@@ -160,11 +122,15 @@ class _MyHomePageState extends State<MyHomePage> {
       To end the subscription you can use
       subscription.cancel();
     */
-    _dbref.child('readings').onChildAdded.listen((DatabaseEvent databaseEvent) {
+    _dbref
+        .child('readings')
+        .child('current')
+        .onChildAdded
+        .listen((DatabaseEvent databaseEvent) {
       int data = databaseEvent.snapshot.value as int;
       print('weight data: $current');
       setState(() {
-        current = current;
+        current = data;
       });
     });
   }
@@ -173,15 +139,15 @@ class _MyHomePageState extends State<MyHomePage> {
     var subscription = FirebaseDatabase.instance
         .ref()
         .child('readings')
-        .onValue
+        .onChildAdded
         .listen((event) {
       Map data = event.snapshot.value as Map;
       data.forEach((key, value) {
         setState(() {
-          current = data['current'];
-          voltage = data['voltage'];
-          pf = data['Pf'];
-          power = data['power'];
+          current = data['current'].toString();
+          voltage = data['voltage'].toString();
+          pf = data['Pf'].toString();
+          power = data['power'].toString();
         });
       });
     });
