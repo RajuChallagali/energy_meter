@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+import 'package:syncfusion_flutter_charts/charts.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseApp firebaseApp = await Firebase.initializeApp();
@@ -34,6 +36,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late DatabaseReference _dbref;
+  List<Amps> amp = [];
 
   var current;
   String voltage = '';
@@ -45,54 +48,99 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _dbref = FirebaseDatabase.instance.ref().child('readings');
 
-    ageChange();
+    /*valueChange();*/
     dataChange();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            buildText('Voltage: $voltage V'),
-            buildText('Current: $current mA'),
-            buildText('Power: $power W'),
-            buildText('Power Factor: $pf'),
-            StreamBuilder(
-              stream: _dbref.onValue,
-              builder: (context, AsyncSnapshot snap) {
-                if (snap.hasData &&
-                    !snap.hasError &&
-                    snap.data.snapshot.value != null) {
-                  Map data = snap.data.snapshot.value;
-                  List item = [];
-                  data.forEach(
-                      (index, data) => item.add({"key": index, ...data}));
-                  return Expanded(
-                    child: ListView.builder(
-                      itemCount: item.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          title: Text(
-                              "Voltage: ${item[index]['voltage'].toString()} V \nCurrent: ${item[index]['current'].toString()} mA \nPF: ${item[index]['Pf'].toString()} \nPower: ${item[index]['power'].toString()} W \nTime: ${item[index]['Time'].toString()}"),
-                        );
-                      },
+    var data;
+    return MaterialApp(
+        home: DefaultTabController(
+            length: 2,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text('Energy Meter'),
+                centerTitle: true,
+                backgroundColor: Colors.green,
+                bottom: TabBar(tabs: [
+                  Text('Graph'),
+                  Text('List'),
+                ]),
+              ),
+              body: TabBarView(children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Container(
+                    child: SfCartesianChart(
+                      primaryXAxis: DateTimeAxis(),
+                      title: ChartTitle(text: 'Current Utilization'),
+                      legend: Legend(
+                        isVisible: true,
+                      ),
+                      tooltipBehavior: TooltipBehavior(enable: true),
+                      series: <ChartSeries<Amps, dynamic>>[
+                        LineSeries<Amps, dynamic>(
+                          dataSource: amp,
+                          xValueMapper: (Amps data, _) => data.sec,
+                          yValueMapper: (Amps data, _) => data.cur,
+                          name: 'Current',
+                          dataLabelSettings: DataLabelSettings(isVisible: true),
+                        ),
+                      ],
                     ),
-                  );
-                } else {
-                  return Center(child: Text("Loading data...."));
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Container(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        buildText('Voltage: $voltage V'),
+                        buildText('Current: $current mA'),
+                        buildText('Power: $power W'),
+                        buildText('Power Factor: $pf'),
+                        StreamBuilder(
+                          stream: _dbref.onValue,
+                          builder: (context, AsyncSnapshot snap) {
+                            if (snap.hasData &&
+                                !snap.hasError &&
+                                snap.data.snapshot.value != null) {
+                              List<Amps> amp = <Amps>[];
+                              Map data = snap.data.snapshot.value;
+                              for (Map childData in data.values) {
+                                amp.add(Amps.fromMap(
+                                    childData.cast<String, dynamic>()));
+                                print(amp);
+                              }
+                              List item = [];
+                              data.forEach((index, data) =>
+                                  item.add({"key": index, ...data}));
+                              print(item);
+                              return Expanded(
+                                child: ListView.builder(
+                                  itemCount: item.length,
+                                  itemBuilder: (context, index) {
+                                    print(item);
+                                    return ListTile(
+                                      title: Text(
+                                          "Voltage: ${item[index]['voltage'].toString()} V \nCurrent: ${item[index]['current'].toString()} mA \nPF: ${item[index]['Pf'].toString()} \nPower: ${item[index]['power'].toString()} W \nTime: ${item[index]['Time'].toString()}"),
+                                    );
+                                  },
+                                ),
+                              );
+                            } else {
+                              return Center(child: Text("Loading data...."));
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ]),
+            )));
   }
 
   Text buildText(String s) {
@@ -105,7 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void ageChange() {
+  /*void valueChange() {
     /*
        var subscription = FirebaseDatabase.instance
       .reference()
@@ -133,7 +181,7 @@ class _MyHomePageState extends State<MyHomePage> {
         current = data;
       });
     });
-  }
+  }*/
 
   void dataChange() {
     var subscription = FirebaseDatabase.instance
@@ -152,4 +200,14 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     });
   }
+}
+
+class Amps {
+  final dynamic sec;
+  final dynamic cur;
+
+  Amps({this.sec, this.cur});
+  Amps.fromMap(Map<String, dynamic> dataMap)
+      : sec = dataMap['Time'],
+        cur = dataMap['current'];
 }
